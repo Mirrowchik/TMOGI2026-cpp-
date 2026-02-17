@@ -8,9 +8,11 @@
 #include <Eigen/Dense>
 #include <Eigen/Core>
 #include <cmath>
+#include <windows.h>
 
 using Eigen::MatrixXd;
 using Eigen::VectorXd;
+using Eigen::VectorXi;
 
 struct Route {
     std::string whence;
@@ -34,7 +36,10 @@ std::vector<std::string> getUniqueNames(const std::vector<Route>& routes) {
     return std::vector<std::string>(uniqueNames.begin(), uniqueNames.end());
 }
 
+
+
 int main(int argc, char* argv[]) {
+
     if (argc != 5) {
         std::cerr << "Error: " << argv[0] << " <path.txt> <path.txt> <path.txt>" << std::endl;
         return 1;
@@ -201,10 +206,25 @@ int main(int argc, char* argv[]) {
         
         
     }
+    // vWd.maxCoeff()
+
+    // VectorXi Vinsta(n);
+    
+    // short step = 1;
+    // short max = 5;
+    // Vinsta.setConstant(-max);
+    // while(Vinsta(n-1)<max)
+    // {
+    //     Vinsta(0)+=step;
+    //     for(int i = 0;i<n-1;i++)
+    //     {
+    //         if(Vinsta(i)>=max){Vinsta(i)=-max;Vinsta(i+1)+=step;}
+    //     }
+    // }
     
     MatrixXd Q(n,n);
     Q.setZero();
-    for(int i = 0;i<n;++i){Q(i,i)= 0.02  * sqrt(vDistance(i));}
+    for(int i = 0;i<n;++i){Q(i,i)= (0.02  * sqrt(vDistance(i)))*(0.02  * sqrt(vDistance(i)));}
 
     MatrixXd R(dof,dof);
     R.setZero();
@@ -253,6 +273,52 @@ int main(int argc, char* argv[]) {
     VectorXd vmH(dof);
     vmH.setZero();
     for(int i = 0;i< dof;i++){vmH(i)=u*sqrt(QH(i,i));}
+    
+    int Erow = dof*3-1;
+    int Ecol = dof+1;
+    MatrixXd E(Erow,Ecol);
+    E.setZero();
+    // заполнение матрицы E
+    for(int i = 0;i<Ecol;i++)
+    {
+        if(i==Ecol-1){E(0,i)=vW(0);}else{E(0,i)=R(0,i);}
+    }
+    for(int i = 0;i<Ecol;i++)
+    {
+        E(1,i)=-E(0,i)/E(0,0);
+    }
+    int up = 1;
+    for(int i = 2;i<Erow;i++)
+    {
+        if((i+1)%3==0)
+        {
+            for(int j = up;j<Ecol;j++)
+            {
+                
+                if(j==Ecol-1){E(i,j)=vW(up);}else{E(i,j)=R(up,j);}
+            }
+        }
+        else if((i+1)%3==1)
+        {
+            for(int j = up;j<Ecol;j++)
+            {
+                double sum = 0;
+                for(int k = 0;k<i;k+=3)
+                {
+                    sum+=E(k,j)*E(k+1,up);
+                }
+                E(i,j)=sum+E(i-1,j);
+            }
+        }
+        else if((i+1)%3==2)
+        {
+            for(int j = up;j<Ecol;j++)
+            {
+                E(i,j)=-E(i-1,j)/E(i-1,up);
+            }
+            up++;
+        }
+    }
 
     // Вывод результатов
     std::cout << "dof = " << dof << std::endl;
@@ -280,7 +346,9 @@ int main(int argc, char* argv[]) {
         // std::cout << std::fixed << std::setprecision(7);
         std::cout << "QH " << std::endl << QH.format(Eigen::IOFormat(0, Eigen::DontAlignCols, "\t│\t",/*между элементами*/"\n",/*между строками*/"│\t",/*начало строки*/"\t│",/*конец строки*/"", "")) << std::endl;
         std::cout << "vmH " << std::endl << vmH << std::endl;
+        std::cout << "E " << std::endl << E.format(Eigen::IOFormat(0, Eigen::DontAlignCols, "\t│\t",/*между элементами*/"\n",/*между строками*/"│\t",/*начало строки*/"\t│",/*конец строки*/"", "")) << std::endl;
         std::cout << "vHigha " << std::endl << vHigha << std::endl;
+        // std::cout << "VinstaL " << std::endl << Vinsta(n-1) << std::endl <<  max;
     }
 
     // Восстановление стандартного вывода в консоль
