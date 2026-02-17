@@ -212,11 +212,6 @@ int main(int argc, char* argv[]) {
     V.setZero();
     V = (Q * matrixB.transpose()) * K;
 
-    VectorXf vHigha(dof);
-    vHigha.setZero();
-    for(int j = 0; j<n;j++){vHigha(0)+=V(j)*matrixF(0,j);}vHigha(0)+=vHigh(0);
-    for(int i = 1;i< dof;i++){for(int j = 0; j<n;j++){vHigha(i)+=V(j)*matrixF(i,j);}vHigha(i)+=vHigh(1);}
-
     VectorXf BV(dof);
     BV.setZero();
     BV = matrixB * V;
@@ -224,6 +219,11 @@ int main(int argc, char* argv[]) {
     VectorXf vHighI(n);
     vHighI.setZero();
     vHighI=vExcess+V;
+
+     VectorXf vHigha(dof);
+    vHigha.setZero();
+    for(int j = 0; j<n;j++){vHigha(0)+=vHighI(j)*matrixF(0,j);}vHigha(0)+=vHigh(0);
+    for(int i = 1;i< dof;i++){for(int j = 0; j<n;j++){vHigha(i)+=vHighI(j)*matrixF(i,j);}vHigha(i)+=vHigh(1);}
 
     float u;
     {float sum = 0;for(int i = 0; i<n ; i++){sum += (1/Q(i,i)) * V(i) * V(i);}  u = sqrt(sum/dof);}
