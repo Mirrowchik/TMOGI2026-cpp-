@@ -212,6 +212,11 @@ int main(int argc, char* argv[]) {
     V.setZero();
     V = (Q * matrixB.transpose()) * K;
 
+    VectorXf vHigha(dof);
+    vHigha.setZero();
+    for(int j = 0; j<n;j++){vHigha(0)+=V(j)*matrixF(0,j);}vHigha(0)+=vHigh(0);
+    for(int i = 1;i< dof;i++){for(int j = 0; j<n;j++){vHigha(i)+=V(j)*matrixF(i,j);}vHigha(i)+=vHigh(1);}
+
     VectorXf BV(dof);
     BV.setZero();
     BV = matrixB * V;
@@ -269,6 +274,7 @@ int main(int argc, char* argv[]) {
         std::cout << std::fixed << std::setprecision(4);
         std::cout << "QH " << std::endl << QH.format(Eigen::IOFormat(0, Eigen::DontAlignCols, "\t│\t",/*между элементами*/"\n",/*между строками*/"│\t",/*начало строки*/"\t│",/*конец строки*/"", "")) << std::endl;
         std::cout << "vmH " << std::endl << vmH << std::endl;
+        std::cout << "vHigha " << std::endl << vHigha << std::endl;
     }
 
     // Восстановление стандартного вывода в консоль
