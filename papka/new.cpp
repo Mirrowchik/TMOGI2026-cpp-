@@ -7,21 +7,22 @@
 #include <set>
 #include <Eigen/Dense>
 #include <Eigen/Core>
+#include <cmath>
 
-using Eigen::MatrixXf;
-using Eigen::VectorXf;
+using Eigen::MatrixXd;
+using Eigen::VectorXd;
 
 struct Route {
     std::string whence;
     std::string whithere;
-    float excess;
-    float distance;
+    double excess;
+    double distance;
     std::string level;
 };
 
 struct routesimple {
     std::string name;
-    float value;
+    double value;
 };
 
 std::vector<std::string> getUniqueNames(const std::vector<Route>& routes) {
@@ -71,8 +72,10 @@ int main(int argc, char* argv[]) {
         }
     }
     file1.close();
-    VectorXf vExcess(r1.size());
-    VectorXf vDistance(r1.size());
+    VectorXd vExcess(r1.size());
+    VectorXd vDistance(r1.size());
+    vExcess.setZero();
+    vDistance.setZero();
     for(int i = 0;  i<r1.size(); i++){vExcess(i)=r1[i].excess;vDistance(i)=r1[i].distance;}
     
     
@@ -97,8 +100,9 @@ int main(int argc, char* argv[]) {
     }
     file2.close();
 
-    VectorXf vHigh(r2.size());
-    for(int i = 0;  i<r2.size(); i++){vHigh(i)=r2[i].value;}
+    VectorXd vHigh(r2.size());
+    vHigh.setZero();
+    for(int i = 0;  i<r2.size(); i++){vHigh(i)+=r2[i].value; }
     
     // Получение уникальных имен и вычисление dof
     std::vector<std::string> uniqueNames = getUniqueNames(r1);
@@ -106,10 +110,10 @@ int main(int argc, char* argv[]) {
     const int dof = static_cast<int>(r1.size() - uniqueNames.size() + r2.size());
 
     // Создание матрицы Eigen
-    MatrixXf matrixB( dof,n);
-    MatrixXf matrixF( dof,n);
-    MatrixXf matrixHigh( dof, r2.size());
-    // MatrixXf matrix(n + r2.size(), dof);
+    MatrixXd matrixB( dof,n);
+    MatrixXd matrixF( dof,n);
+    MatrixXd matrixHigh( dof, r2.size());
+    // MatrixXd matrix(n + r2.size(), dof);
     matrixB.setZero();
     matrixF.setZero(); // Инициализация нулями
     matrixHigh.setZero();
@@ -124,7 +128,7 @@ int main(int argc, char* argv[]) {
 
     for (int j = 0; j < dof; ++j) {
         for (int i = 0; i < n + r2.size(); ++i) {
-            float value;
+            double value;
             if (!(file3 >> value)) {
                 std::cerr << "Error read matrixB " << n << "x" << dof << std::endl;
                 return 1;
@@ -149,7 +153,7 @@ int main(int argc, char* argv[]) {
 
     for (int j = 0; j < dof; ++j) {
         for (int i = 0; i < n; ++i) {
-            float value;
+            double value;
             if (!(file4 >> value)) {
                 std::cerr << "Error read matrixB " << n << "x" << dof << std::endl;
                 return 1;
@@ -166,10 +170,11 @@ int main(int argc, char* argv[]) {
     }
     file4.close();
 
-    VectorXf vW(dof);
+    VectorXd vW(dof);
+    vW.setZero();
     for(int i  = 0;i<dof;++i)
     {
-        float sum = 0;
+        double sum = 0;
         for(int j=0;j<n;++j)
         {
             sum+= vExcess(j) * matrixB(i,j);
@@ -181,10 +186,11 @@ int main(int argc, char* argv[]) {
         vW(i) = sum;
     }
 
-    VectorXf vWd(dof);
+    VectorXd vWd(dof);
+    vWd.setZero();
     for(int i  = 0;i<dof;++i)
     {
-        float sum = 0;
+        double sum = 0;
         for(int j=0;j<n;++j)
         {
             sum+= vDistance(j) * abs(matrixB(i,j));
@@ -196,55 +202,55 @@ int main(int argc, char* argv[]) {
         
     }
     
-    MatrixXf Q(n,n);
+    MatrixXd Q(n,n);
     Q.setZero();
     for(int i = 0;i<n;++i){Q(i,i)= 0.02  * sqrt(vDistance(i));}
 
-    MatrixXf R(dof,dof);
+    MatrixXd R(dof,dof);
     R.setZero();
     R = matrixB * Q * matrixB.transpose(); 
 
-    VectorXf K(dof);
+    VectorXd K(dof);
     K.setZero();
     K = -1 * R.inverse() * vW; 
 
-    VectorXf V(n);
+    VectorXd V(n);
     V.setZero();
     V = (Q * matrixB.transpose()) * K;
 
-    VectorXf BV(dof);
+    VectorXd BV(dof);
     BV.setZero();
     BV = matrixB * V;
 
-    VectorXf vHighI(n);
+    VectorXd vHighI(n);
     vHighI.setZero();
     vHighI=vExcess+V;
 
-     VectorXf vHigha(dof);
+     VectorXd vHigha(dof);
     vHigha.setZero();
     for(int j = 0; j<n;j++){vHigha(0)+=vHighI(j)*matrixF(0,j);}vHigha(0)+=vHigh(0);
     for(int i = 1;i< dof;i++){for(int j = 0; j<n;j++){vHigha(i)+=vHighI(j)*matrixF(i,j);}vHigha(i)+=vHigh(1);}
 
-    float u;
-    {float sum = 0;for(int i = 0; i<n ; i++){sum += (1/Q(i,i)) * V(i) * V(i);}  u = sqrt(sum/dof);}
+    double u;
+    {double sum = 0;for(int i = 0; i<n ; i++){sum += (1/Q(i,i)) * V(i) * V(i);}  u = sqrt(sum/dof);}
 
-    MatrixXf Qv(n,n);
+    MatrixXd Qv(n,n);
     Qv.setZero();
     Qv = -1 * Q * matrixB.transpose() * R.inverse() * matrixB * Q;
     
-    MatrixXf Qy(n,n);
+    MatrixXd Qy(n,n);
     Qy.setZero();
     Qy = Q + Qv; 
 
-    VectorXf vmh(n);
+    VectorXd vmh(n);
     vmh.setZero();
     for(int i = 0;i< n;i++){vmh(i)=u*sqrt(Qy(i,i));}
 
-    MatrixXf QH(dof,dof);
+    MatrixXd QH(dof,dof);
     QH.setZero();
     QH = matrixF * Qy * matrixF.transpose();
 
-    VectorXf vmH(dof);
+    VectorXd vmH(dof);
     vmH.setZero();
     for(int i = 0;i< dof;i++){vmH(i)=u*sqrt(QH(i,i));}
 
@@ -253,12 +259,12 @@ int main(int argc, char* argv[]) {
     if (n > 0 && dof > 0) {
         std::cout << "matrixB " << std::endl << matrixB << std::endl;
         std::cout << "matrixH " << std::endl << matrixHigh << std::endl;
-        std::cout << std::fixed << std::setprecision(4);
+        std::cout << std::fixed << std::setprecision(7);
         std::cout << "VH " << std::endl << vHigh << std::endl;
         std::cout << "Vd " << std::endl << vDistance << std::endl;
         std::cout << "Ve " << std::endl << vExcess << std::endl;
         std::cout << "VW " << std::endl << vW << std::endl;
-        std::cout << "VWd " << std::endl << vWd << std::endl;
+        std::cout << "VWd " << std::endl << vWd/1000 << std::endl;
         std::cout << "Q " << std::endl << Q.format(Eigen::IOFormat(0, Eigen::DontAlignCols, "\t│\t",/*между элементами*/"\n",/*между строками*/"│\t",/*начало строки*/"\t│",/*конец строки*/"", "")) << std::endl;
         std::cout << "R " << std::endl << R.format(Eigen::IOFormat(0, Eigen::DontAlignCols, "\t│\t",/*между элементами*/"\n",/*между строками*/"│\t",/*начало строки*/"\t│",/*конец строки*/"", "")) << std::endl;
         std::cout << "K " << std::endl << K << std::endl;
@@ -269,9 +275,9 @@ int main(int argc, char* argv[]) {
         std::cout << "Qv " << std::endl << Qv.format(Eigen::IOFormat(0, Eigen::DontAlignCols, "\t│\t",/*между элементами*/"\n",/*между строками*/"│\t",/*начало строки*/"\t│",/*конец строки*/"", "")) << std::endl;
         std::cout << "Qy " << std::endl << Qy.format(Eigen::IOFormat(0, Eigen::DontAlignCols, "\t│\t",/*между элементами*/"\n",/*между строками*/"│\t",/*начало строки*/"\t│",/*конец строки*/"", "")) << std::endl;
         std::cout << "vmh " << std::endl << vmh << std::endl;
-        std::cout << std::fixed << std::setprecision(0);
+        // std::cout << std::fixed << std::setprecision(0);
         std::cout << "matrixF " << std::endl << matrixF << std::endl;
-        std::cout << std::fixed << std::setprecision(4);
+        // std::cout << std::fixed << std::setprecision(7);
         std::cout << "QH " << std::endl << QH.format(Eigen::IOFormat(0, Eigen::DontAlignCols, "\t│\t",/*между элементами*/"\n",/*между строками*/"│\t",/*начало строки*/"\t│",/*конец строки*/"", "")) << std::endl;
         std::cout << "vmH " << std::endl << vmH << std::endl;
         std::cout << "vHigha " << std::endl << vHigha << std::endl;
